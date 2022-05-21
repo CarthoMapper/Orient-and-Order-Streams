@@ -30,8 +30,10 @@ __copyright__ = '(C) 2022 by Sokhrannykh V., Samsonov T.'
 
 __revision__ = '$Format:%H$'
 
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import QgsProcessingProvider
 from .orient_stream_algorithm import OrientStreamAlgorithm
+from .Streams_ordering_algorhithm import StreamsOrderingAlgorithm
 
 
 class OrientStreamProvider(QgsProcessingProvider):
@@ -55,7 +57,7 @@ class OrientStreamProvider(QgsProcessingProvider):
         """
         self.addAlgorithm(OrientStreamAlgorithm())
         # add additional algorithms here
-        # self.addAlgorithm(MyOtherAlgorithm())
+        self.addAlgorithm(StreamsOrderingAlgorithm())
 
     def id(self):
         """
@@ -72,14 +74,14 @@ class OrientStreamProvider(QgsProcessingProvider):
 
         This string should be short (e.g. "Lastools") and localised.
         """
-        return self.tr('')
+        return self.tr('Orient & Order Streams')
 
     def icon(self):
         """
         Should return a QIcon which is used for your provider inside
         the Processing toolbox.
         """
-        return QgsProcessingProvider.icon(self)
+        return QIcon(':/icon_svg.svg')
 
     def longName(self):
         """
