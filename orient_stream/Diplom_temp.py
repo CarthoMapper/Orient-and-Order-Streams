@@ -4,7 +4,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import networkx as nx
-# import fiona
+from osgeo import ogr
 import pandas as pd
 from shapely.geometry import LineString, Point
 from srtm_py.srtm import main

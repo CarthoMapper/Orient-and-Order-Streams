@@ -68,6 +68,7 @@ class OrientStreamAlgorithm(QgsProcessingAlgorithm):
     INPUT = 'INPUT vector streams'
     GET_ELEV = 'Get elevation method'
     DEM = 'Input DEM (Optional)'
+    TOLERANCE = 'Tolerance when finding the mouth of the river, meters (Need to find deltas)'
     FIELD = 'Streams Field ID'
     OUTPUT = 'OUTPUT orient streams'
 
@@ -93,7 +94,7 @@ class OrientStreamAlgorithm(QgsProcessingAlgorithm):
                 self.GET_ELEV,
                 self.tr('How do you want to get elevation data?'),
                 options=['from local DEM.tif', 'Open Elevation API', 'SRTM_online'],
-                defaultValue='from local DEM.tif',
+                defaultValue=0,
                 optional=False
             )
         )
@@ -102,6 +103,15 @@ class OrientStreamAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 self.DEM,
                 self.tr('Input DEM')
+            )
+        )
+
+        self.addParameter(
+            QgsProcessingParameterNumber(
+                self.TOLERANCE,
+                self.tr('Tolerance when finding the mouth of the river, m (Need to find deltas'),
+                type=QgsProcessingParameterNumber.Double,
+                defaultValue=0
             )
         )
 
@@ -129,10 +139,11 @@ class OrientStreamAlgorithm(QgsProcessingAlgorithm):
         """
         rivers = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         dem = self.parameterAsRasterLayer(parameters, self.DEM, context).dataProvider().dataSourceUri()
+        tolerance = self.parameterAsDouble(parameters, self.TOLERANCE, context)
         output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
+        elev_method = self.parameterAsInt(parameters, self.GET_ELEV, context)
 
-
-        orient_streams(rivers, dem, output)
+        orient_streams(rivers, dem, tolerance, elev_method, output)
 
         # Return the results of the algorithm. In this case our only result is
         # the feature sink which contains the processed features, but some

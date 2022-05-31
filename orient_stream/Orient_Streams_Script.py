@@ -1,5 +1,8 @@
 import networkx as nx
 import json
+import urllib
+import urllib3
+import requests
 import pandas as pd
 from shapely.geometry import LineString, Point
 from srtm_py.srtm import main
@@ -65,7 +68,7 @@ def elevation_function(x):
    result = make_remote_request(url, params)
    return result.json()['results'][0]['elevation']
 
-def orient_streams(streams, DEM, output):
+def orient_streams(streams, DEM, tolerance, elev_method, output):
     # output = r'C:\Users\vital\Desktop\Diplom\scratch\split_lines.shp' #C:/Users/vital/Desktop/Diplom/vectors/river_OSM1.shp
     # split_streams = 'in_memory/split_streams'
 
@@ -150,10 +153,6 @@ def orient_streams(streams, DEM, output):
     flip_fid_list = []
     counter = 0
 
-    raster = gdal.Open(DEM)
-    gt = raster.GetGeoTransform()
-    myarray = np.array(raster.GetRasterBand(1).ReadAsArray())
-
     D = GG.degree()
     list_leaves = []
     two_degree_list = []
@@ -163,14 +162,26 @@ def orient_streams(streams, DEM, output):
         elif i[1] == 2:
             two_degree_list.append(i[0])
     # print(list_leaves)
-    for node in list_leaves:
-        wkt = pixel(all_nodes.loc[node]['x'], all_nodes.loc[node]['y'], gt)
-        elev = myarray[wkt[0], wkt[1]]
-
-        # With online get elevation!!!
-        # elev = elevation_function((all.loc[node]['y'], all.loc[node]['x']))
-
-        GG.nodes[node]['elev'] = elev
+    #With local DEM get elevation
+    if elev_method == 0:
+        raster = gdal.Open(DEM)
+        gt = raster.GetGeoTransform()
+        myarray = np.array(raster.GetRasterBand(1).ReadAsArray())
+        for node in list_leaves:
+            wkt = pixel(all_nodes.loc[node]['x'], all_nodes.loc[node]['y'], gt)
+            elev = myarray[wkt[0], wkt[1]]
+            GG.nodes[node]['elev'] = elev
+    # With online get elevation (250m)
+    if elev_method == 1:
+        for node in list_leaves:
+            elev = elevation_function((all_nodes.loc[node]['x'], all_nodes.loc[node]['y']))
+            GG.nodes[node]['elev'] = elev
+    # With SRTM-online get elevation(30m)
+    if elev_method == 2:
+        elevation_data = main.get_data()
+        for node in list_leaves:
+            elev = elevation_data.get_elevation(all_nodes.loc[node]['y'], all_nodes.loc[node]['x'])
+            GG.nodes[node]['elev'] = elev
 
     A = (GG.subgraph(c) for c in nx.connected_components(GG))
     A = list(A)
@@ -187,24 +198,26 @@ def orient_streams(streams, DEM, output):
         l = 9999
         for i in list_leaves_G:
             k = G.nodes[i].pop('elev')
+            if k == None:
+                k = 0
             leaves_list_with_elev.append((i, k))
             if k < l:
                 l = k
-                min_node = i
+                min_elev = k
         dest = []
         for j in leaves_list_with_elev:
-            if j >= min_node - 2 and j <= min_node + 2:
-                dest.append(j)
+            if min_elev - tolerance <= j[1] <= min_elev + tolerance:
+                dest.append(j[0])
 
         try:
             for d in dest:
-                list_leaves.remove(d)
+                list_leaves_G.remove(d)
         except ValueError:
             continue
 
         for i in list_leaves_G:
             # Find the shortest path from node1 to node2
-            all_sp = all_simple_paths(G, source=i, target=dest)
+            all_sp = nx.all_simple_paths(G, source=i, target=dest)
             for sp_e in all_sp:
 
                 # Create a graph from 'shortest path'
